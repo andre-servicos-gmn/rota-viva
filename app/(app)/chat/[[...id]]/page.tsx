@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { notFound } from "next/navigation";
 import { Chat } from "@/components/chat/chat";
 import { PainelContexto } from "@/components/shell/painel-contexto";
@@ -50,9 +49,8 @@ export default async function PaginaChat({
 
         <Chat
           key={conversa?.id ?? "nova"}
-          conversaId={conversa?.id ?? randomUUID()}
+          conversaId={conversa?.id}
           mensagensIniciais={mensagens}
-          novaConversa={!conversa}
         />
       </div>
 

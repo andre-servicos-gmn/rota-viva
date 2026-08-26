@@ -2,6 +2,7 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  stepCountIs,
   streamText,
   type UIMessage,
 } from "ai";
@@ -9,6 +10,7 @@ import { z } from "zod";
 import { criarModelo, temCredenciais } from "@/lib/ai/provider";
 import { escreverRespostaDemo } from "@/lib/ai/demo";
 import { systemPrompt } from "@/lib/ai/system-prompt";
+import { ferramentas } from "@/lib/ai/tools";
 import { consumir, ipDaRequisicao } from "@/lib/rate-limit";
 import { garantirConversa, salvarMensagens } from "@/lib/repos/conversas";
 import { viajanteAtual } from "@/lib/traveler";
@@ -103,7 +105,10 @@ export async function POST(req: Request) {
       model: criarModelo(),
       system: systemPrompt({ dataDeHoje: hoje }),
       messages: convertToModelMessages(mensagens),
-      // Tools entram na fase 2.
+      tools: ferramentas,
+      // O agente precisa de vários passos: buscar, ler o resultado e comentar.
+      // Sem isto ele para no primeiro tool call e o usuário vê o card sem análise.
+      stopWhen: stepCountIs(6),
     });
 
     return resultado.toUIMessageStreamResponse({

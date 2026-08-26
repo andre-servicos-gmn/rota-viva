@@ -1,0 +1,125 @@
+/**
+ * Insumos para gerar hotéis.
+ *
+ * Nomes de hotel são fictícios — nenhuma rede real aparece na POC. Bairros são
+ * reais, porque é o que faz "fica em Belém, longe do centro" significar alguma
+ * coisa para quem está escolhendo.
+ */
+
+export const NOMES_DE_HOTEL = [
+  "Hotel Miramar",
+  "Casa Aurora",
+  "Pousada do Cais",
+  "Grande Hotel Meridiano",
+  "Hotel Bandeira",
+  "Residência Alvorada",
+  "Hotel Pontal",
+  "Casa das Palmeiras",
+  "Hotel Girassol",
+  "Estalagem Vento Norte",
+  "Hotel Cravo & Canela",
+  "Solar do Relógio",
+  "Hotel Farol",
+  "Casa Bergamota",
+  "Hotel Independência",
+  "Pousada Maré Alta",
+  "Hotel Céu Aberto",
+  "Villa Constância",
+  "Hotel Serra Azul",
+  "Casa do Viajante",
+  "Hotel Primavera",
+  "Albergue Boa Vista",
+  "Hotel Nascente",
+  "Palacete Camélia",
+];
+
+export const TIPOS_DE_QUARTO = [
+  "Standard casal",
+  "Superior com varanda",
+  "Duplo twin",
+  "Studio com cozinha",
+  "Quarto família",
+  "Suíte júnior",
+  "Loft com vista",
+];
+
+/** Bairros por cidade — usados para localização e distância do centro. */
+export const BAIRROS: Record<string, string[]> = {
+  "São Paulo": ["Jardins", "Vila Madalena", "Pinheiros", "Bela Vista", "Itaim Bibi", "Higienópolis", "Santa Cecília"],
+  "Rio de Janeiro": ["Copacabana", "Ipanema", "Leblon", "Botafogo", "Santa Teresa", "Flamengo", "Centro"],
+  "Brasília": ["Asa Sul", "Asa Norte", "Setor Hoteleiro Sul", "Lago Sul", "Sudoeste"],
+  Salvador: ["Pelourinho", "Barra", "Rio Vermelho", "Ondina", "Itapuã", "Comércio"],
+  Recife: ["Boa Viagem", "Recife Antigo", "Pina", "Casa Forte", "Espinheiro"],
+  Fortaleza: ["Meireles", "Praia de Iracema", "Mucuripe", "Aldeota", "Praia do Futuro"],
+  "Porto Alegre": ["Moinhos de Vento", "Centro Histórico", "Cidade Baixa", "Bela Vista"],
+  Curitiba: ["Batel", "Centro Cívico", "Água Verde", "Mercês", "Alto da XV"],
+  "Florianópolis": ["Centro", "Lagoa da Conceição", "Jurerê", "Canasvieiras", "Campeche"],
+  "Maceió": ["Pajuçara", "Ponta Verde", "Jatiúca", "Cruz das Almas"],
+  Manaus: ["Centro", "Adrianópolis", "Ponta Negra", "Vieiralves"],
+  "Belém": ["Nazaré", "Cidade Velha", "Umarizal", "Batista Campos"],
+  Natal: ["Ponta Negra", "Petrópolis", "Tirol", "Praia do Meio"],
+  "Foz do Iguaçu": ["Centro", "Vila Yolanda", "Jardim América", "Três Lagoas"],
+  "Buenos Aires": ["Palermo", "Recoleta", "San Telmo", "Puerto Madero", "Retiro", "Belgrano"],
+  Santiago: ["Providencia", "Las Condes", "Bellavista", "Lastarria", "Vitacura"],
+  "Montevidéu": ["Ciudad Vieja", "Pocitos", "Punta Carretas", "Centro"],
+  Lima: ["Miraflores", "Barranco", "San Isidro", "Centro Histórico"],
+  "Bogotá": ["La Candelaria", "Chapinero", "Usaquén", "Zona T"],
+  "Cancún": ["Zona Hoteleira", "Centro", "Puerto Juárez"],
+  "Cidade do México": ["Roma Norte", "Condesa", "Polanco", "Centro Histórico", "Coyoacán"],
+  Miami: ["South Beach", "Brickell", "Downtown", "Wynwood", "Coral Gables"],
+  "Nova York": ["Midtown", "Lower East Side", "Brooklyn Heights", "Upper West Side", "Chelsea"],
+  "Los Angeles": ["Santa Monica", "Downtown", "Hollywood", "Venice", "Koreatown"],
+  Lisboa: ["Baixa", "Alfama", "Chiado", "Príncipe Real", "Belém", "Parque das Nações"],
+  Porto: ["Ribeira", "Baixa", "Cedofeita", "Foz do Douro"],
+  Madri: ["Sol", "Malasaña", "Salamanca", "La Latina", "Chamberí"],
+  Barcelona: ["Eixample", "Gòtic", "Gràcia", "Barceloneta", "Poblenou"],
+  Paris: ["Le Marais", "Saint-Germain", "Montmartre", "Latin Quarter", "Opéra"],
+  Roma: ["Centro Storico", "Trastevere", "Monti", "Prati", "Testaccio"],
+  Londres: ["Soho", "Shoreditch", "South Bank", "Kensington", "Camden"],
+  "Amsterdã": ["Jordaan", "De Pijp", "Centrum", "Oud-West"],
+  Joanesburgo: ["Sandton", "Rosebank", "Maboneng", "Melville"],
+  Dubai: ["Downtown", "Marina", "Deira", "Jumeirah"],
+  "Tóquio": ["Shinjuku", "Shibuya", "Asakusa", "Ginza", "Ueno"],
+};
+
+/**
+ * Preço médio da diária por cidade, em reais, para categoria 3 estrelas.
+ * O gerador parte daqui e ajusta por estrelas, temporada e antecedência.
+ */
+export const DIARIA_BASE: Record<string, number> = {
+  "São Paulo": 320,
+  "Rio de Janeiro": 380,
+  "Brasília": 300,
+  Salvador: 260,
+  Recife: 250,
+  Fortaleza: 240,
+  "Porto Alegre": 270,
+  Curitiba: 250,
+  "Florianópolis": 340,
+  "Maceió": 260,
+  Manaus: 240,
+  "Belém": 220,
+  Natal: 250,
+  "Foz do Iguaçu": 280,
+  "Buenos Aires": 330,
+  Santiago: 350,
+  "Montevidéu": 340,
+  Lima: 290,
+  "Bogotá": 280,
+  "Cancún": 520,
+  "Cidade do México": 340,
+  Miami: 690,
+  "Nova York": 980,
+  "Los Angeles": 780,
+  Lisboa: 560,
+  Porto: 450,
+  Madri: 540,
+  Barcelona: 580,
+  Paris: 820,
+  Roma: 610,
+  Londres: 890,
+  "Amsterdã": 720,
+  Joanesburgo: 380,
+  Dubai: 640,
+  "Tóquio": 590,
+};

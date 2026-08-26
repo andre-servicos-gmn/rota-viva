@@ -46,7 +46,7 @@ export function TextoRico({ texto }: { texto: string }) {
 
 /** Negrito (**), código inline (`) — nada além disso. */
 function inline(trecho: string): React.ReactNode[] {
-  const partes = trecho.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  const partes = trecho.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*\n]+\*)/g);
 
   return partes.filter(Boolean).map((parte, i) => {
     if (parte.startsWith("**") && parte.endsWith("**")) {
@@ -54,6 +54,15 @@ function inline(trecho: string): React.ReactNode[] {
         <strong key={i} className="font-semibold text-noite">
           {parte.slice(2, -2)}
         </strong>
+      );
+    }
+    // Itálico usa asterisco, não sublinhado: com `_texto_`, o primeiro
+    // sublinhado de um nome como XAI_API_KEY fechava o itálico no lugar errado.
+    if (parte.startsWith("*") && parte.endsWith("*") && parte.length > 2) {
+      return (
+        <em key={i} className="text-tinta-2">
+          {parte.slice(1, -1)}
+        </em>
       );
     }
     if (parte.startsWith("`") && parte.endsWith("`") && parte.length > 2) {

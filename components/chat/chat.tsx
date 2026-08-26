@@ -10,6 +10,7 @@ import { Composer } from "./composer";
 import { EstadoErro } from "@/components/ui/feedback";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ProvedorDeAcoes, type ItemFavorito } from "./acoes";
 
 const SUGESTOES = [
   "Voo de São Paulo para Lisboa em outubro",
@@ -19,16 +20,27 @@ const SUGESTOES = [
 ];
 
 export function Chat({
-  conversaId,
+  conversaId: idExistente,
   mensagensIniciais,
-  novaConversa,
 }: {
-  conversaId: string;
+  /** Ausente numa conversa nova: o id nasce no cliente. */
+  conversaId?: string;
   mensagensIniciais: UIMessage[];
-  novaConversa: boolean;
 }) {
   const router = useRouter();
-  const jaSincronizou = React.useRef(!novaConversa);
+
+  /*
+   * O id precisa ser estável pela vida inteira do componente.
+   *
+   * Antes ele era gerado no servidor a cada render; quando o `router.refresh()`
+   * do fim do stream rodava, vinha um id novo, o React remontava o chat pela
+   * key e a conversa inteira sumia da tela — as mensagens ainda estavam sendo
+   * gravadas no banco e voltavam vazias. Gerando aqui, refresh nenhum mexe nele.
+   */
+  const [conversaId] = React.useState(
+    () => idExistente ?? globalThis.crypto.randomUUID(),
+  );
+  const jaSincronizou = React.useRef(Boolean(idExistente));
 
   const { messages, sendMessage, status, error, regenerate, stop, clearError } =
     useChat({
@@ -42,12 +54,76 @@ export function Chat({
           jaSincronizou.current = true;
           window.history.replaceState(null, "", `/chat/${conversaId}`);
         }
-        router.refresh();
+        /*
+         * O servidor grava a conversa no onFinish do stream, que corre em
+         * paralelo com este callback. Sem a folga, o refresh chega antes do
+         * commit e a sidebar continua dizendo "nenhuma conversa ainda".
+         */
+        setTimeout(() => router.refresh(), 400);
       },
     });
 
   const ocupado = status === "submitted" || status === "streaming";
   const fim = React.useRef<HTMLDivElement>(null);
+
+  // Favoritos vivem no banco (alimentam o comparador), mas a lista de ids fica
+  // aqui para o botão responder na hora, sem esperar o ida e volta.
+  const [favoritados, setFavoritados] = React.useState<Set<string>>(new Set());
+
+  React.useEffect(() => {
+    let cancelado = false;
+    fetch("/api/favoritos")
+      .then((r) => (r.ok ? r.json() : { favoritos: [] }))
+      .then((dados: { favoritos?: { refId: string }[] }) => {
+        if (!cancelado) {
+          setFavoritados(new Set((dados.favoritos ?? []).map((f) => f.refId)));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  const acoes = React.useMemo(
+    () => ({
+      ocupado,
+      favoritados,
+      perguntar: (texto: string) => {
+        if (!ocupado) void sendMessage({ text: texto });
+      },
+      favoritar: (item: ItemFavorito) => {
+        const jaEstava = favoritados.has(item.refId);
+
+        // Otimista: o coração responde imediatamente e volta atrás se falhar.
+        setFavoritados((atual) => {
+          const proximo = new Set(atual);
+          if (jaEstava) proximo.delete(item.refId);
+          else proximo.add(item.refId);
+          return proximo;
+        });
+
+        fetch("/api/favoritos", {
+          method: jaEstava ? "DELETE" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...item, conversationId: conversaId }),
+        })
+          .then((r) => {
+            if (!r.ok) throw new Error("falhou");
+            router.refresh();
+          })
+          .catch(() => {
+            setFavoritados((atual) => {
+              const proximo = new Set(atual);
+              if (jaEstava) proximo.add(item.refId);
+              else proximo.delete(item.refId);
+              return proximo;
+            });
+          });
+      },
+    }),
+    [ocupado, favoritados, sendMessage, conversaId, router],
+  );
 
   React.useEffect(() => {
     // Sem mensagens não há o que acompanhar — e rolar aqui moveria o ponto de
@@ -59,6 +135,7 @@ export function Chat({
   const vazio = messages.length === 0;
 
   return (
+    <ProvedorDeAcoes valor={acoes}>
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="rolagem flex flex-1 flex-col overflow-y-auto">
         <div
@@ -108,6 +185,7 @@ export function Chat({
         onEnviar={(texto) => void sendMessage({ text: texto })}
       />
     </div>
+    </ProvedorDeAcoes>
   );
 }
 
