@@ -1,0 +1,166 @@
+// Rota Viva — POC. SQLite local, sem serviço externo.
+// Nota: o provider sqlite do Prisma não suporta `enum`. Todos os campos de estado são
+// String e a validação vive em lib/types.ts (union types) + Zod nas bordas.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Uma conversa do chat. `status` ∈ ACTIVE | ESCALATED | HUMAN | CLOSED
+model Conversation {
+  id              String   @id @default(cuid())
+  titulo          String   @default("Nova conversa")
+  status          String   @default("ACTIVE")
+  atendente       String?
+  motivoEscalacao String?
+  resumoEscalacao String?
+  escaladaEm      DateTime?
+  travelerId      String?
+  criadaEm        DateTime @default(now())
+  atualizadaEm    DateTime @updatedAt
+
+  traveler  Traveler?      @relation(fields: [travelerId], references: [id])
+  mensagens Message[]
+  favoritos Favorite[]
+  chamados  SupportTicket[]
+  roteiros  Itinerary[]
+
+  @@index([status, atualizadaEm])
+}
+
+/// Mensagem persistida no formato UIMessage do AI SDK (parts serializadas em JSON).
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String
+  parts          String   @default("[]")
+  criadaEm       DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, criadaEm])
+}
+
+/// Viajante da POC. Dados fictícios — nenhum documento real no repositório.
+model Traveler {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  nome       String
+  telefone   String?
+  /// JSON: { assento, ciaPreferida, restricaoAlimentar, fidelidade[], orcamento }
+  prefs      String   @default("{}")
+  /// JSON: [{ tipo, numero, validade, paisEmissor }] — sempre fictícios
+  documentos String   @default("[]")
+  criadoEm   DateTime @default(now())
+
+  reservas      Booking[]
+  alertas       PriceAlert[]
+  conversas     Conversation[]
+}
+
+/// Reserva. `tipo` ∈ FLIGHT | HOTEL | PACKAGE. `status` ∈ CONFIRMED | CHANGED | CANCELLED
+model Booking {
+  id          String   @id @default(cuid())
+  localizador String   @unique
+  tipo        String
+  status      String   @default("CONFIRMED")
+  travelerId  String
+  /// JSON congelado no momento da emissão: voo, hotel, passageiros, extras
+  snapshot    String
+  total       Float
+  moeda       String   @default("BRL")
+  fareId      String?
+  /// JSON com as regras da tarifa aplicadas na emissão
+  fareRules   String   @default("{}")
+  criadaEm    DateTime @default(now())
+  atualizadaEm DateTime @updatedAt
+
+  traveler Traveler        @relation(fields: [travelerId], references: [id])
+  eventos  BookingEvent[]
+  chamados SupportTicket[]
+
+  @@index([travelerId, criadaEm])
+}
+
+/// Trilha de auditoria da reserva. `tipo` ∈ CREATED | CHANGED | CANCELLED
+model BookingEvent {
+  id        String   @id @default(cuid())
+  bookingId String
+  tipo      String
+  multa     Float    @default(0)
+  diferenca Float    @default(0)
+  detalhes  String   @default("{}")
+  criadoEm  DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, criadoEm])
+}
+
+/// Chamado de suporte. `prioridade` ∈ BAIXA | MEDIA | ALTA | URGENTE
+model SupportTicket {
+  id             String   @id @default(cuid())
+  numero         String   @unique
+  conversationId String?
+  bookingId      String?
+  categoria      String
+  prioridade     String   @default("MEDIA")
+  status         String   @default("ABERTO")
+  assunto        String
+  corpo          String
+  criadoEm       DateTime @default(now())
+
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+  booking      Booking?      @relation(fields: [bookingId], references: [id])
+}
+
+/// Alerta de preço. O "job" é disparado manualmente pela UI (POST /api/alerts/run).
+model PriceAlert {
+  id         String    @id @default(cuid())
+  travelerId String
+  origem     String
+  destino    String
+  dataAlvo   String
+  precoBase  Float
+  precoAtual Float
+  alvo       Float?
+  status     String    @default("ATIVO")
+  disparadoEm DateTime?
+  criadoEm   DateTime  @default(now())
+
+  traveler Traveler @relation(fields: [travelerId], references: [id])
+}
+
+/// Roteiro editável (arrastar / remover / adicionar blocos na UI).
+model Itinerary {
+  id             String   @id @default(cuid())
+  conversationId String?
+  destino        String
+  titulo         String
+  /// JSON: Dia[] { numero, data?, blocos: Bloco[] }
+  dias           String
+  criadoEm       DateTime @default(now())
+  atualizadoEm   DateTime @updatedAt
+
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+}
+
+/// Item favoritado no chat — alimenta o comparador. `tipo` ∈ FLIGHT | HOTEL
+model Favorite {
+  id             String   @id @default(cuid())
+  conversationId String?
+  tipo           String
+  refId          String
+  /// JSON com a opção inteira, congelada
+  snapshot       String
+  criadoEm       DateTime @default(now())
+
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+
+  @@unique([conversationId, refId])
+}

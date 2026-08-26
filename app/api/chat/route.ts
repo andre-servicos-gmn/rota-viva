@@ -1,0 +1,125 @@
+import {
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  streamText,
+  type UIMessage,
+} from "ai";
+import { z } from "zod";
+import { criarModelo, temCredenciais } from "@/lib/ai/provider";
+import { escreverRespostaDemo } from "@/lib/ai/demo";
+import { systemPrompt } from "@/lib/ai/system-prompt";
+import { consumir, ipDaRequisicao } from "@/lib/rate-limit";
+import { garantirConversa, salvarMensagens } from "@/lib/repos/conversas";
+import { viajanteAtual } from "@/lib/traveler";
+
+export const maxDuration = 60;
+
+/**
+ * Único caminho até o modelo. A chave da xAI nunca sai daqui: o client fala com
+ * esta rota, esta rota fala com o provedor.
+ */
+
+// O UIMessage do AI SDK tem parts variadas; validamos a casca e confiamos no SDK
+// para o miolo. O que importa checar aqui é forma, tamanho e origem.
+const CorpoDoChat = z.object({
+  id: z.string().min(1).max(64).optional(),
+  messages: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        role: z.enum(["user", "assistant", "system"]),
+        parts: z.array(z.object({ type: z.string() }).passthrough()).default([]),
+      }),
+    )
+    .min(1)
+    .max(200),
+});
+
+function erro(mensagem: string, status: number, extra?: Record<string, unknown>) {
+  return Response.json({ erro: mensagem, ...extra }, { status });
+}
+
+export async function POST(req: Request) {
+  const limite = consumir(`chat:${ipDaRequisicao(req)}`);
+  if (!limite.permitido) {
+    return erro(
+      `Muitas mensagens seguidas. Tente de novo em ${limite.esperarSegundos}s.`,
+      429,
+      { esperarSegundos: limite.esperarSegundos },
+    );
+  }
+
+  let corpo: z.infer<typeof CorpoDoChat>;
+  try {
+    corpo = CorpoDoChat.parse(await req.json());
+  } catch (e) {
+    return erro(
+      "Não consegui ler essa mensagem. Recarregue a página e tente de novo.",
+      400,
+      { detalhe: e instanceof Error ? e.message : undefined },
+    );
+  }
+
+  const mensagens = corpo.messages as UIMessage[];
+
+  const viajante = await viajanteAtual();
+  const conversa = await garantirConversa(corpo.id, viajante.id);
+
+  const hoje = new Date().toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
+  const aoTerminar = async ({ messages }: { messages: UIMessage[] }) => {
+    try {
+      await salvarMensagens(conversa.id, messages);
+    } catch (e) {
+      // Falha ao gravar não pode derrubar a resposta que o usuário já está lendo.
+      console.error("[chat] falha ao salvar conversa", e);
+    }
+  };
+
+  // --- Modo demonstração: sem chave, a interface continua inteira de pé. -----
+  if (!temCredenciais()) {
+    const stream = createUIMessageStream({
+      originalMessages: mensagens,
+      onFinish: aoTerminar,
+      execute: async ({ writer }) => escreverRespostaDemo(writer, mensagens),
+      onError: () => "Falha no modo demonstração. Tente de novo.",
+    });
+
+    return createUIMessageStreamResponse({
+      stream,
+      headers: { "x-rota-viva-modo": "demonstracao", "x-conversa": conversa.id },
+    });
+  }
+
+  // --- Modo real: xAI / Grok ------------------------------------------------
+  try {
+    const resultado = streamText({
+      model: criarModelo(),
+      system: systemPrompt({ dataDeHoje: hoje }),
+      messages: convertToModelMessages(mensagens),
+      // Tools entram na fase 2.
+    });
+
+    return resultado.toUIMessageStreamResponse({
+      originalMessages: mensagens,
+      onFinish: aoTerminar,
+      headers: { "x-rota-viva-modo": "modelo", "x-conversa": conversa.id },
+      onError: (e) => {
+        console.error("[chat] erro no stream", e);
+        return "O modelo falhou no meio da resposta. Tente de novo.";
+      },
+    });
+  } catch (e) {
+    console.error("[chat] erro ao iniciar stream", e);
+    return erro(
+      "Não consegui falar com o modelo. Verifique XAI_API_KEY e XAI_BASE_URL.",
+      502,
+    );
+  }
+}

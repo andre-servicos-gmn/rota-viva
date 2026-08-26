@@ -1,0 +1,21 @@
+node_modules/
+.next/
+out/
+build/
+
+# ambiente
+.env
+.env.local
+.env*.local
+
+# banco local (POC)
+prisma/dev.db
+prisma/dev.db-journal
+*.db
+*.db-journal
+
+# sistema
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+next-env.d.ts

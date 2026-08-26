@@ -1,0 +1,292 @@
+@import "tailwindcss";
+
+/* =========================================================================
+   Rota Viva — tokens de design
+   Conceito: prancheta de despacho de voo. Vocabulário de sinalização de
+   aeródromo e cartografia aeronáutica. Sem gradiente, sem foto, sem avião
+   desenhado. A ousadia mora num lugar só: o canhoto perfurado (fim do arquivo).
+   ========================================================================= */
+
+@theme {
+  /* --- paleta nomeada ------------------------------------------------- */
+  --color-noite: #0b1524; /* noite-de-voo — tinta principal */
+  --color-noite-2: #142338; /* elevação dentro da sidebar */
+  --color-taxiway: #1b3a6b; /* azul-taxiway — primário */
+  --color-taxiway-claro: #2f5da3;
+  --color-nevoa: #edf1f5; /* fundo claro */
+  --color-pista: #f2b705; /* amarelo-pista — ação e foco */
+  --color-pista-fosco: #fdf3d4;
+  --color-eixo: #2e7d5b; /* verde-eixo — confirmado */
+  --color-eixo-fosco: #e6f2ec;
+  --color-lacre: #b02e3a; /* vermelho-lacre — erro, carimbo */
+  --color-lacre-fosco: #fbeaec;
+
+  /* --- neutros derivados ---------------------------------------------- */
+  --color-papel: #ffffff;
+  --color-papel-2: #f7f9fb;
+  --color-linha: #d3dce6;
+  --color-linha-forte: #b6c3d2;
+  --color-tinta-2: #4a5b70; /* texto secundário — 7.1:1 sobre névoa */
+  --color-tinta-3: #6b7c92; /* texto terciário */
+
+  /* --- tipografia ------------------------------------------------------ */
+  --font-display: var(--fonte-display), "Archivo", system-ui, sans-serif;
+  --font-sans: var(--fonte-sans), "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: var(--fonte-mono), "IBM Plex Mono", ui-monospace, monospace;
+
+  --text-titulo: 2.75rem;
+  --text-titulo--line-height: 1.05;
+  --text-secao: 1.75rem;
+  --text-secao--line-height: 1.15;
+  --text-cartao: 1.35rem;
+  --text-cartao--line-height: 1.2;
+
+  --radius-bilhete: 4px;
+}
+
+/* =========================================================================
+   Base
+   ========================================================================= */
+
+@layer base {
+  * {
+    border-color: var(--color-linha);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-nevoa);
+    color: var(--color-noite);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-stretch: 118%; /* largura de placa de sinalização */
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+
+  /* Foco visível em tudo que é focável — piso de acessibilidade, sem exceção. */
+  :focus-visible {
+    outline: 2px solid var(--color-pista);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--color-pista);
+    color: var(--color-noite);
+  }
+
+  /* Números sempre tabulares em contexto de valor/horário. */
+  .tabular,
+  time,
+  [data-valor] {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* =========================================================================
+   Utilitários da marca
+   ========================================================================= */
+
+/* Código IATA, localizador, número de voo. Nunca decorativo: é informação. */
+@utility codigo {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Rótulo de campo impresso, como em bilhete de papel. */
+@utility rotulo {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-tinta-3);
+  line-height: 1.2;
+}
+
+/* Marcação de pista: faixa diagonal amarela/tinta. Usada com parcimônia. */
+@utility faixa-pista {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--color-pista) 0 10px,
+    var(--color-noite) 10px 20px
+  );
+}
+
+/* =========================================================================
+   ELEMENTO ASSINATURA — o canhoto perfurado
+   Todo resultado que representa um compromisso (voo, hotel, voucher, linha do
+   comparador) é um bilhete: corpo + canhoto, separados por perfuração real.
+   Os círculos usam a cor do fundo da página para simular o recorte.
+   ========================================================================= */
+
+.bilhete {
+  --fundo-recorte: var(--color-nevoa);
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  background: var(--color-papel);
+  border: 1px solid var(--color-linha);
+  border-radius: var(--radius-bilhete);
+}
+
+.bilhete__picote {
+  position: relative;
+  width: 1px;
+  align-self: stretch;
+  margin: 10px 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--color-linha-forte) 0 5px,
+    transparent 5px 11px
+  );
+}
+
+/* Os dois recortes semicirculares nas extremidades da perfuração. */
+.bilhete__picote::before,
+.bilhete__picote::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--fundo-recorte);
+  border: 1px solid var(--color-linha);
+  transform: translateX(-50%);
+}
+
+.bilhete__picote::before {
+  top: -19px;
+  clip-path: inset(50% 0 0 0);
+}
+
+.bilhete__picote::after {
+  bottom: -19px;
+  clip-path: inset(0 0 50% 0);
+}
+
+/* O canhoto: estreito, com o código impresso na vertical. */
+.bilhete__canhoto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.875rem 0.625rem;
+  min-width: 3.25rem;
+}
+
+.bilhete__vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-tinta-3);
+}
+
+/* Carimbo de estado — levemente torto, como carimbo de balcão. */
+.carimbo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transform: rotate(-4deg);
+  opacity: 0.9;
+}
+
+.carimbo--emitido {
+  color: var(--color-eixo);
+}
+.carimbo--alterado {
+  color: var(--color-taxiway);
+}
+.carimbo--cancelado {
+  color: var(--color-lacre);
+}
+
+/* Quando o bilhete está sobre fundo branco (ex.: painel), o recorte muda de cor. */
+.bilhete[data-sobre="papel"] {
+  --fundo-recorte: var(--color-papel-2);
+}
+
+/* =========================================================================
+   Movimento — sempre com saída para quem pediu menos animação
+   ========================================================================= */
+
+@keyframes rv-entrada {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes rv-pulso {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.anim-entrada {
+  animation: rv-entrada 220ms ease-out both;
+}
+
+.anim-pulso {
+  animation: rv-pulso 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .anim-entrada {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Barra de rolagem discreta, sem sequestrar o comportamento nativo. */
+@supports (scrollbar-width: thin) {
+  .rolagem {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-linha-forte) transparent;
+  }
+}
