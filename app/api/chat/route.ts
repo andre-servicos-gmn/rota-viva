@@ -7,7 +7,7 @@ import {
   type UIMessage,
 } from "ai";
 import { z } from "zod";
-import { criarModelo, temCredenciais } from "@/lib/ai/provider";
+import { criarModelo, nomeDoModelo, temCredenciais } from "@/lib/ai/provider";
 import { escreverRespostaDemo } from "@/lib/ai/demo";
 import { systemPrompt } from "@/lib/ai/system-prompt";
 import { ferramentas } from "@/lib/ai/tools";
@@ -40,6 +40,54 @@ const CorpoDoChat = z.object({
 
 function erro(mensagem: string, status: number, extra?: Record<string, unknown>) {
   return Response.json({ erro: mensagem, ...extra }, { status });
+}
+
+/**
+ * Traduz a falha do provedor para algo acionável.
+ *
+ * "Tente de novo" é o pior conselho possível quando o problema é falta de
+ * crédito ou chave errada: a pessoa repete cinco vezes e conclui que o produto
+ * está quebrado. Cada caso aqui diz o que aconteceu e qual é o próximo passo.
+ */
+function explicarFalhaDoModelo(e: unknown): string {
+  const bruto = e as { statusCode?: number; responseBody?: string; message?: string };
+  const status = bruto?.statusCode;
+  const corpo = String(bruto?.responseBody ?? bruto?.message ?? "");
+
+  if (status === 401) {
+    return (
+      "A chave da xAI foi recusada. Confira XAI_API_KEY no .env.local e reinicie o " +
+      "servidor. Sem chave, o app volta ao modo demonstração e continua funcionando."
+    );
+  }
+
+  if (status === 403) {
+    // A xAI devolve 403 tanto para conta sem crédito quanto para modelo sem acesso.
+    if (/credit|licen/i.test(corpo)) {
+      return (
+        "A conta da xAI não tem créditos. Compre em console.x.ai ou remova a " +
+        "XAI_API_KEY do .env.local para voltar ao modo demonstração, que roda sem custo."
+      );
+    }
+    return (
+      "A xAI recusou o acesso a este modelo. Verifique se XAI_MODEL é um modelo " +
+      "liberado para a sua conta."
+    );
+  }
+
+  if (status === 404) {
+    return `O modelo "${nomeDoModelo()}" não existe nesta conta. Ajuste XAI_MODEL no .env.local.`;
+  }
+
+  if (status === 429) {
+    return "A xAI limitou a taxa de requisições. Espere alguns segundos e tente de novo.";
+  }
+
+  if (status && status >= 500) {
+    return "A xAI está com instabilidade no momento. Tente de novo em instantes.";
+  }
+
+  return "O modelo falhou no meio da resposta. Tente de novo.";
 }
 
 export async function POST(req: Request) {
@@ -117,7 +165,7 @@ export async function POST(req: Request) {
       headers: { "x-rota-viva-modo": "modelo", "x-conversa": conversa.id },
       onError: (e) => {
         console.error("[chat] erro no stream", e);
-        return "O modelo falhou no meio da resposta. Tente de novo.";
+        return explicarFalhaDoModelo(e);
       },
     });
   } catch (e) {
