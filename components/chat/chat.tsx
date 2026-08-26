@@ -22,10 +22,13 @@ const SUGESTOES = [
 export function Chat({
   conversaId: idExistente,
   mensagensIniciais,
+  perguntaInicial,
 }: {
   /** Ausente numa conversa nova: o id nasce no cliente. */
   conversaId?: string;
   mensagensIniciais: UIMessage[];
+  /** Vem de /chat?q=... — os botões "remarcar" e "cancelar" das reservas. */
+  perguntaInicial?: string;
 }) {
   const router = useRouter();
 
@@ -124,6 +127,19 @@ export function Chat({
     }),
     [ocupado, favoritados, sendMessage, conversaId, router],
   );
+
+  /*
+   * Pergunta que veio pela URL: enviada uma única vez, e a URL é limpa em
+   * seguida para que um F5 não reenvie a mesma coisa.
+   */
+  const jaEnviouInicial = React.useRef(false);
+  React.useEffect(() => {
+    if (jaEnviouInicial.current) return;
+    if (!perguntaInicial || mensagensIniciais.length > 0) return;
+    jaEnviouInicial.current = true;
+    window.history.replaceState(null, "", "/chat");
+    void sendMessage({ text: perguntaInicial });
+  }, [perguntaInicial, mensagensIniciais.length, sendMessage]);
 
   React.useEffect(() => {
     // Sem mensagens não há o que acompanhar — e rolar aqui moveria o ponto de

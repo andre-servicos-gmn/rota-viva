@@ -5,6 +5,29 @@ import { ListaDeVoos } from "./lista-voos";
 import { CartaoHotel } from "./cartao-hotel";
 import { CartaoPacote } from "./cartao-pacote";
 import { TimelineRoteiro } from "./roteiro";
+import { Voucher } from "./voucher";
+import {
+  ConfirmarAlteracao,
+  ConfirmarCancelamento,
+  ConfirmarReserva,
+} from "./confirmacao";
+import {
+  CartaoAlerta,
+  CartaoAlteracaoFeita,
+  CartaoCambio,
+  CartaoCancelamentoFeito,
+  CartaoChamado,
+  CartaoCustoMedio,
+  CartaoDocumentacao,
+  CartaoEscalado,
+  CartaoFaq,
+  CartaoParcelamento,
+  CartaoPasseios,
+  CartaoPerfil,
+  CartaoPolitica,
+  CartaoSeguro,
+  CartaoTransfers,
+} from "./complementos";
 import { dataCurta } from "@/lib/utils";
 import { brl } from "@/lib/utils";
 
@@ -84,6 +107,99 @@ export function ResultadoDeFerramenta({ saida }: { saida: unknown }) {
           observacao={dados.observacao}
         />
       );
+
+    /* ------------------------------------------- reserva e pós-venda */
+
+    case "confirmar-reserva":
+      return <ConfirmarReserva dados={dados} />;
+
+    case "confirmar-cancelamento":
+      return <ConfirmarCancelamento dados={dados} />;
+
+    case "confirmar-alteracao":
+      return <ConfirmarAlteracao dados={dados} />;
+
+    case "voucher":
+      return (
+        <Voucher
+          localizador={dados.localizador}
+          status={dados.status}
+          voo={dados.voo}
+          hotel={dados.hotel}
+          passageiros={dados.passageiros}
+          contato={dados.contato}
+          total={dados.total}
+          emitidaEm={dados.emitidaEm}
+        />
+      );
+
+    case "reservas":
+      return (
+        <section className="space-y-2.5" aria-label="Reservas encontradas">
+          {dados.reservas.map((reserva: any) => (
+            <Voucher
+              key={reserva.localizador}
+              localizador={reserva.localizador}
+              status={reserva.status}
+              voo={reserva.voo}
+              hotel={reserva.hotel}
+              passageiros={reserva.passageiros}
+              total={reserva.total}
+              emitidaEm={reserva.criadaEm}
+            />
+          ))}
+        </section>
+      );
+
+    case "politica":
+      return <CartaoPolitica dados={dados} />;
+
+    case "cancelamento-feito":
+      return <CartaoCancelamentoFeito dados={dados} />;
+
+    case "alteracao-feita":
+      return <CartaoAlteracaoFeita dados={dados} />;
+
+    /* -------------------------------------------------------- suporte */
+
+    case "documentacao":
+      return <CartaoDocumentacao dados={dados} />;
+
+    case "faq":
+      return <CartaoFaq dados={dados} />;
+
+    case "chamado":
+      return <CartaoChamado dados={dados} />;
+
+    case "escalado":
+      return <CartaoEscalado dados={dados} />;
+
+    /* --------------------------------------------------- complementos */
+
+    case "seguro":
+      return <CartaoSeguro dados={dados} />;
+
+    case "transfers":
+      return <CartaoTransfers dados={dados} />;
+
+    case "passeios":
+      return <CartaoPasseios dados={dados} />;
+
+    case "parcelamento":
+      return <CartaoParcelamento dados={dados} />;
+
+    case "cambio":
+      return <CartaoCambio dados={dados} />;
+
+    case "custo-medio":
+      return <CartaoCustoMedio dados={dados} />;
+
+    case "alerta-criado":
+    case "alertas":
+      return <CartaoAlerta dados={dados} />;
+
+    case "perfil":
+      return <CartaoPerfil dados={dados} />;
 
     default:
       return <SemComponente kind={String(dados.kind ?? "desconhecido")} dados={dados} />;

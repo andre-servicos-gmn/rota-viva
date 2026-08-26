@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { provedores } from "@/lib/providers";
+import { db } from "@/lib/db";
 import type { Passeio } from "@/lib/providers/types";
 import { diferencaEmDias, somarDias } from "@/lib/datas";
 import {
@@ -354,7 +355,18 @@ export const montarRoteiro = tool({
         );
       }
 
+      // Persistir aqui é o que permite editar o roteiro depois na tela própria:
+      // sem isso, o resultado viveria só dentro da conversa.
+      const salvo = await db.itinerary.create({
+        data: {
+          destino: todos[0]!.cidade,
+          titulo: `${dias} dias em ${todos[0]!.cidade}`,
+          dias: JSON.stringify(roteiro),
+        },
+      });
+
       return ok("roteiro", {
+        id: salvo.id,
         destino: todos[0]!.cidade,
         dias,
         ritmo,

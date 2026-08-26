@@ -1,7 +1,7 @@
 import type { UIMessage, UIMessageStreamWriter } from "ai";
 import { textoDaMensagem } from "@/lib/repos/conversas";
 import { ferramentas } from "@/lib/ai/tools";
-import { brl, duracao } from "@/lib/utils";
+import { brl, duracao, emCidade } from "@/lib/utils";
 import { dataPorExtenso } from "@/lib/datas";
 import {
   detectarCabine,
@@ -177,11 +177,147 @@ function comentarHoteis(r: QualquerResultado) {
 
 function comentarRoteiro(r: QualquerResultado) {
   return [
-    `Montei ${r.dias} dias em ${r.destino}, em ritmo ${r.ritmo}.`,
+    `Montei ${r.dias} dias ${emCidade(r.destino)}, em ritmo ${r.ritmo}.`,
     "",
     `A estimativa é de ${brl(r.custoEstimadoTotal)} por pessoa em passeios e refeições — sem hotel e sem passagem.`,
     "Você pode arrastar, remover ou trocar qualquer bloco na tela de Roteiro.",
   ].join("\n");
+}
+
+/* --------------------------------------------------- Fluxo de reserva */
+
+const VIAJANTE_DEMO = {
+  nome: "Helena Braga",
+  documento: "XX0000000",
+  email: "helena.braga@exemplo.com.br",
+};
+
+/** Último id de voo ou hotel citado na conversa, do mais recente para o mais antigo. */
+function ultimoId(mensagens: UIMessage[], prefixo: "V" | "H") {
+  for (let i = mensagens.length - 1; i >= 0; i--) {
+    const texto = textoDaMensagem(mensagens[i]);
+    const achado = new RegExp(`${prefixo}~[^\\s,.]+`).exec(texto);
+    if (achado) return achado[0];
+  }
+  return undefined;
+}
+
+/**
+ * Trata emissão, confirmação e cancelamento. Devolve `true` quando assumiu o
+ * turno, para que a orquestração não siga para as buscas.
+ */
+async function tratarReserva(
+  writer: UIMessageStreamWriter,
+  mensagens: UIMessage[],
+  pergunta: string,
+): Promise<boolean> {
+  const texto = pergunta.toLowerCase();
+  const localizador = /RV-[A-Z0-9]{6}/i.exec(pergunta)?.[0]?.toUpperCase();
+
+  // --- confirmações -------------------------------------------------------
+  const confirmando = /\b(confirmo|pode emitir|pode confirmar|confirmar)\b/.test(texto);
+
+  if (confirmando && /cancel/.test(texto) && localizador) {
+    const r = await chamarFerramenta(writer, "cancelarReserva", {
+      localizador,
+      confirmado: true,
+    });
+    await escrever(
+      writer,
+      (r?.ok
+        ? "Cancelamento feito. O comprovante fica na tela de reservas."
+        : `${r?.erro ?? "Não consegui cancelar."}`) + AVISO,
+    );
+    return true;
+  }
+
+  if (confirmando && /alter|remarc/.test(texto) && localizador) {
+    const data = /(\d{2})\/(\d{2})/.exec(pergunta);
+    const r = await chamarFerramenta(writer, "alterarReserva", {
+      localizador,
+      novaDataIda: data
+        ? `${new Date().getFullYear() + 1}-${data[2]}-${data[1]}`
+        : detectarDatas(pergunta).ida,
+      confirmado: true,
+    });
+    await escrever(
+      writer,
+      (r?.ok ? "Alteração feita." : `${r?.erro ?? "Não consegui alterar."}`) + AVISO,
+    );
+    return true;
+  }
+
+  if (confirmando && /reserv|emitir/.test(texto)) {
+    const vooId = ultimoId(mensagens, "V");
+    const hotelId = ultimoId(mensagens, "H");
+    if (!vooId && !hotelId) return false;
+
+    const r = await chamarFerramenta(writer, "criarReserva", {
+      vooId,
+      hotelId,
+      passageiros: [{ nome: VIAJANTE_DEMO.nome, documento: VIAJANTE_DEMO.documento }],
+      email: VIAJANTE_DEMO.email,
+      confirmado: true,
+    });
+
+    await escrever(
+      writer,
+      (r?.ok
+        ? `Reserva emitida. O localizador é **${r.localizador}** — guarde esse código, é ele que identifica a viagem em qualquer atendimento. O voucher em PDF está no botão do card.`
+        : `${r?.erro ?? "Não consegui emitir."}`) + AVISO,
+    );
+    return true;
+  }
+
+  // --- primeira etapa: simulação ------------------------------------------
+  if (/\b(quero|vou|pode)\s+(reservar|comprar)\b/.test(texto) || /\bid:\s*[VH]~/i.test(pergunta)) {
+    const vooId = ultimoId(mensagens, "V");
+    const hotelId = ultimoId(mensagens, "H");
+    if (!vooId && !hotelId) return false;
+
+    const r = await chamarFerramenta(writer, "criarReserva", {
+      vooId,
+      hotelId,
+      passageiros: [{ nome: VIAJANTE_DEMO.nome, documento: VIAJANTE_DEMO.documento }],
+      email: VIAJANTE_DEMO.email,
+    });
+
+    await escrever(
+      writer,
+      (r?.ok
+        ? "Confira os dados acima antes de eu emitir. Nada é cobrado enquanto você não confirmar."
+        : `${r?.erro ?? "Não consegui montar a reserva."}`) + AVISO,
+    );
+    return true;
+  }
+
+  if (/\bcancel/.test(texto) && localizador) {
+    const r = await chamarFerramenta(writer, "cancelarReserva", { localizador });
+    await escrever(
+      writer,
+      (r?.ok
+        ? "Veja a conta do cancelamento acima. Só executo depois que você confirmar."
+        : `${r?.erro ?? "Não consegui calcular."}`) + AVISO,
+    );
+    return true;
+  }
+
+  if (/\b(remarc|alterar a reserva|mudar a data)/.test(texto) && localizador) {
+    const datas = detectarDatas(pergunta);
+    const r = await chamarFerramenta(writer, "alterarReserva", {
+      localizador,
+      novaDataIda: datas.ida,
+    });
+    await escrever(
+      writer,
+      (r?.ok
+        ? `Calculei para ${dataPorExtenso(datas.ida)}. Se for outra data, me diga qual.`
+        : `${r?.erro ?? "Não consegui calcular."}`) + AVISO,
+    );
+    return true;
+  }
+
+  return false;
 }
 
 /* ------------------------------------------------------------- Orquestração */
@@ -196,6 +332,15 @@ export async function escreverRespostaDemo(
   const cidades = detectarCidades(pergunta);
   const datas = detectarDatas(pergunta);
   const passageiros = detectarPassageiros(pergunta);
+
+  /*
+   * Reserva e cancelamento vêm antes das buscas porque são disparados pelos
+   * botões dos cards, com um texto reconhecível ("Id: V~..." ou "Confirmo").
+   * O contexto (qual voo, qual hotel) é recuperado varrendo o histórico — é o
+   * que o modelo faria lendo a conversa.
+   */
+  const fluxo = await tratarReserva(writer, mensagens, pergunta);
+  if (fluxo) return;
 
   if (intencao === "voos" || intencao === "pacote") {
     if (!cidades.destino) {
@@ -290,17 +435,148 @@ export async function escreverRespostaDemo(
     return;
   }
 
+  if (intencao === "documentacao") {
+    const destino = cidades.unica ?? cidades.destino;
+    if (!destino) {
+      await escrever(writer, "Para qual país você quer saber as exigências de entrada?" + AVISO);
+      return;
+    }
+    const r = await chamarFerramenta(writer, "consultarDocumentacao", {
+      destino,
+      nacionalidade: "brasileira",
+    });
+    await escrever(
+      writer,
+      (r?.ok
+        ? "Confira as exigências acima. Lembre que isso é orientação: quem decide na hora é o consulado e a companhia aérea."
+        : `${r?.erro ?? "Não consegui consultar."} ${r?.sugestao ?? ""}`) + AVISO,
+    );
+    return;
+  }
+
+  if (intencao === "faq") {
+    const r = await chamarFerramenta(writer, "faq", { pergunta });
+    await escrever(
+      writer,
+      (r?.ok
+        ? "Foi isso que encontrei na base de ajuda. Se a sua situação for diferente do que está aí, me conte o caso que eu abro um chamado."
+        : `${r?.erro ?? "Nada encontrado."} ${r?.sugestao ?? ""}`) + AVISO,
+    );
+    return;
+  }
+
+  if (intencao === "seguro") {
+    const destino = cidades.unica ?? cidades.destino ?? "Lisboa";
+    const dias = detectarQuantidadeDias(pergunta);
+    const r = await chamarFerramenta(writer, "cotarSeguroViagem", {
+      destino,
+      dias,
+      viajantes: passageiros,
+    });
+    await escrever(
+      writer,
+      (r?.ok
+        ? `Três planos para ${dias} dias. ${
+            r.exigeCoberturaMinima
+              ? "Atenção: o Essencial fica abaixo da cobertura mínima que esse destino costuma exigir — para lá, o Completo é o piso."
+              : "O Completo costuma ser o equilíbrio entre preço e cobertura."
+          }`
+        : `${r?.erro ?? "Não consegui cotar."}`) + AVISO,
+    );
+    return;
+  }
+
+  if (intencao === "transfer") {
+    const cidade = cidades.unica ?? cidades.destino;
+    if (!cidade) {
+      await escrever(writer, "Em qual cidade você precisa do transfer?" + AVISO);
+      return;
+    }
+    const r = await chamarFerramenta(writer, "buscarTransfer", {
+      cidade,
+      passageiros,
+      dias: detectarQuantidadeDias(pergunta),
+    });
+    await escrever(
+      writer,
+      (r?.ok
+        ? "O compartilhado é bem mais barato, mas para até três paradas antes da sua. Com bagagem ou chegada de madrugada, o privativo compensa."
+        : `${r?.erro ?? "Não consegui buscar."}`) + AVISO,
+    );
+    return;
+  }
+
+  if (intencao === "custo") {
+    const cidade = cidades.unica ?? cidades.destino;
+    if (!cidade) {
+      await escrever(writer, "De qual cidade você quer saber o custo médio?" + AVISO);
+      return;
+    }
+    const r = await chamarFerramenta(writer, "custoMedioDestino", {
+      cidade,
+      dias: detectarQuantidadeDias(pergunta),
+      pessoas: passageiros,
+    });
+    await escrever(
+      writer,
+      (r?.ok
+        ? "Esses valores cobrem o dia a dia — comida e transporte. Hospedagem e passeios entram por fora."
+        : `${r?.erro ?? "Não consegui levantar."}`) + AVISO,
+    );
+    return;
+  }
+
+  if (intencao === "cambio") {
+    const valor = /(\d[\d.]*)/.exec(pergunta.replace(/\./g, ""));
+    const r = await chamarFerramenta(writer, "converterMoeda", {
+      de: "BRL",
+      para: /d[oó]lar|usd/i.test(pergunta) ? "USD" : "EUR",
+      valor: valor ? Number(valor[1]) : 1000,
+    });
+    await escrever(
+      writer,
+      (r?.ok ? "Cotação de demonstração, fixa nesta POC." : `${r?.erro ?? "Não consegui converter."}`) +
+        AVISO,
+    );
+    return;
+  }
+
+  if (intencao === "parcelamento") {
+    const valor = /(\d[\d.]*)/.exec(pergunta.replace(/\./g, ""));
+    const r = await chamarFerramenta(writer, "simularParcelamento", {
+      total: valor ? Number(valor[1]) : 5000,
+      entrada: 0,
+    });
+    await escrever(
+      writer,
+      (r?.ok
+        ? "Até 3x o valor é o mesmo. A partir de 4x entram juros — a coluna da direita mostra quanto custa esperar."
+        : `${r?.erro ?? "Não consegui simular."}`) + AVISO,
+    );
+    return;
+  }
+
+  if (intencao === "reservas") {
+    const localizador = /RV-[A-Z0-9]{6}/i.exec(pergunta)?.[0];
+    const r = await chamarFerramenta(
+      writer,
+      "consultarReserva",
+      localizador ? { localizador } : {},
+    );
+    await escrever(
+      writer,
+      (r?.ok
+        ? "Achei. Me diga o que você quer fazer: **remarcar** para outra data ou **cancelar**. Eu calculo a multa antes de qualquer coisa."
+        : `${r?.erro ?? "Não encontrei reservas."} ${r?.sugestao ?? ""}`) + AVISO,
+    );
+    return;
+  }
+
   await escrever(writer, textoDeAbertura(intencao) + AVISO);
 }
 
 function textoDeAbertura(intencao: string) {
-  if (intencao === "reservas" || intencao === "documentacao" || intencao === "seguro") {
-    return (
-      "Essa parte entra nas próximas fases da POC. Por enquanto eu já sei buscar **voos**, " +
-      "**hotéis** e montar **roteiros** — todos com dados de demonstração."
-    );
-  }
-
+  void intencao;
   return (
     "Oi. Sou o agente da Rota Viva.\n\n" +
     "Posso buscar voos, comparar hotéis e montar um roteiro dia a dia. " +

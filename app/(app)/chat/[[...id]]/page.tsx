@@ -12,10 +12,13 @@ export const dynamic = "force-dynamic";
 
 export default async function PaginaChat({
   params,
+  searchParams,
 }: {
   params: Promise<{ id?: string[] }>;
+  searchParams: Promise<{ q?: string }>;
 }) {
   const { id } = await params;
+  const { q } = await searchParams;
   const conversaId = id?.[0];
 
   // /chat/algo/coisa não é uma rota nossa.
@@ -51,6 +54,7 @@ export default async function PaginaChat({
           key={conversa?.id ?? "nova"}
           conversaId={conversa?.id}
           mensagensIniciais={mensagens}
+          perguntaInicial={q?.slice(0, 500)}
         />
       </div>
 

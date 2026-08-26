@@ -30,6 +30,32 @@ export function duracao(minutos: number) {
   return `${h}h ${m}min`;
 }
 
+/**
+ * Preposição certa antes do nome da cidade: "em Lisboa", mas "no Rio de
+ * Janeiro". Sem isto o agente escreve "3 dias em Rio de Janeiro", que soa como
+ * tradução automática e derruba a confiança no resto da resposta.
+ */
+const CIDADES_COM_ARTIGO: Record<string, string> = {
+  "Rio de Janeiro": "no",
+  Porto: "no",
+  Recife: "no",
+  Cairo: "no",
+  Havre: "no",
+  "Cidade do México": "na",
+  "Foz do Iguaçu": "em",
+};
+
+export function emCidade(cidade: string) {
+  const preposicao = CIDADES_COM_ARTIGO[cidade] ?? "em";
+  return `${preposicao} ${cidade}`;
+}
+
+/** Plural de palavras terminadas em -l ("hotel" → "hotéis"). */
+export function plural(quantidade: number, singular: string, pluralExplicito?: string) {
+  if (quantidade === 1) return `${quantidade} ${singular}`;
+  return `${quantidade} ${pluralExplicito ?? `${singular}s`}`;
+}
+
 /** "12 mar" — data curta em pt-BR a partir de ISO (sem fuso, para não deslocar o dia). */
 export function dataCurta(iso: string) {
   const [ano, mes, dia] = iso.slice(0, 10).split("-").map(Number);
