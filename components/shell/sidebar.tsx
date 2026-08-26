@@ -60,7 +60,7 @@ export function Sidebar({
 
       <div className="mt-2 flex min-h-0 flex-1 flex-col border-t border-white/10 pt-3">
         <div className="flex items-center justify-between px-4 pb-2">
-          <h2 className="rotulo text-nevoa/50!">Conversas</h2>
+          <h2 className="rotulo text-nevoa/65!">Conversas</h2>
           <Link
             href="/chat"
             className="flex items-center gap-1 text-[11px] text-pista hover:underline"
@@ -72,7 +72,7 @@ export function Sidebar({
 
         <ul className="rolagem min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-3">
           {conversas.length === 0 ? (
-            <li className="px-2.5 py-2 text-[13px] leading-snug text-nevoa/45">
+            <li className="px-2.5 py-2 text-[13px] leading-snug text-nevoa/65">
               Nenhuma conversa ainda. Escreva a primeira mensagem para começar.
             </li>
           ) : (
@@ -125,7 +125,7 @@ export function Sidebar({
             <p className="truncate text-[13px] font-medium text-white">
               {viajante.nome}
             </p>
-            <p className="truncate text-[11px] text-nevoa/50">{viajante.email}</p>
+            <p className="truncate text-[11px] text-nevoa/70">{viajante.email}</p>
           </div>
         </div>
       </div>
@@ -144,7 +144,7 @@ function Marca() {
       <p className="font-display text-[22px] font-bold leading-none tracking-tight text-white">
         ROTA VIVA
       </p>
-      <p className="rotulo mt-1.5 text-nevoa/45!">Despacho de viagens</p>
+      <p className="rotulo mt-1.5 text-nevoa/65!">Despacho de viagens</p>
     </div>
   );
 }

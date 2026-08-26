@@ -16,7 +16,7 @@
   --color-nevoa: #edf1f5; /* fundo claro */
   --color-pista: #f2b705; /* amarelo-pista — ação e foco */
   --color-pista-fosco: #fdf3d4;
-  --color-eixo: #2e7d5b; /* verde-eixo — confirmado */
+  --color-eixo: #2a7354; /* verde-eixo — confirmado; 5:1 sobre o fosco */
   --color-eixo-fosco: #e6f2ec;
   --color-lacre: #b02e3a; /* vermelho-lacre — erro, carimbo */
   --color-lacre-fosco: #fbeaec;
@@ -27,7 +27,7 @@
   --color-linha: #d3dce6;
   --color-linha-forte: #b6c3d2;
   --color-tinta-2: #4a5b70; /* texto secundário — 7.1:1 sobre névoa */
-  --color-tinta-3: #6b7c92; /* texto terciário */
+  --color-tinta-3: #5b6b80; /* texto terciário — 4.8:1 sobre névoa, o fundo mais claro */
 
   /* --- tipografia ------------------------------------------------------ */
   --font-display: var(--fonte-display), "Archivo", system-ui, sans-serif;
@@ -223,7 +223,9 @@
   overflow: hidden;
   font-size: 0.6875rem;
   letter-spacing: 0.18em;
-  opacity: 0.75;
+  /* Sem opacidade: ela clareava a tinta para 3.2:1. O código impresso é
+     redundante (o localizador aparece grande no corpo), mas texto visível
+     ilegível não se justifica nem quando é decorativo. */
 }
 
 /* Carimbo de estado — levemente torto, como carimbo de balcão. */
@@ -240,7 +242,6 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   transform: rotate(-4deg);
-  opacity: 0.9;
 }
 
 .carimbo--emitido {
