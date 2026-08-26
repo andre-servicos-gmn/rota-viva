@@ -35,12 +35,21 @@ export function PainelDoChat({
               {comModelo ? "conectado" : "desligado"}
             </Etiqueta>
           </div>
-          <p className="codigo mt-1.5 text-[13px] text-noite">{modelo}</p>
+          <p
+            className={
+              comModelo
+                ? "codigo mt-1.5 text-[13px] text-noite"
+                : "codigo mt-1.5 text-[13px] text-tinta-3 line-through"
+            }
+          >
+            {modelo}
+          </p>
           {!comModelo ? (
             <p className="mt-2 text-[12px] leading-snug text-tinta-2">
-              Sem <span className="codigo text-[11px]">XAI_API_KEY</span> no{" "}
-              <span className="codigo text-[11px]">.env.local</span>, as respostas
-              são locais. A interface e o histórico funcionam do mesmo jeito.
+              Nenhum modelo conectado — as respostas são locais. Coloque{" "}
+              <span className="codigo text-[11px]">XAI_API_KEY</span> no{" "}
+              <span className="codigo text-[11px]">.env.local</span> para ligar o
+              Grok. A interface e o histórico funcionam do mesmo jeito.
             </p>
           ) : null}
         </div>

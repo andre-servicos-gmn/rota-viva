@@ -44,18 +44,21 @@ export function PainelContexto({
 
   return (
     <>
-      {/* Botão de abrir a gaveta — só abaixo de xl. */}
-      <div className="fixed bottom-[68px] right-3 z-30 xl:hidden">
-        <Button
-          variant="escura"
-          tamanho="sm"
-          onClick={() => setGavetaAberta(true)}
-          aria-expanded={gavetaAberta}
-        >
-          <PanelRightOpen size={15} aria-hidden />
+      {/*
+        Abaixo de xl o painel vira uma orelha colada na borda direita, no meio da
+        altura. Como botão flutuante no rodapé ele cobria a legenda do composer;
+        como orelha não colide com nada e ecoa o canhoto do bilhete.
+      */}
+      <button
+        type="button"
+        onClick={() => setGavetaAberta(true)}
+        aria-expanded={gavetaAberta}
+        className="fixed right-0 top-1/2 z-30 flex -translate-y-1/2 items-center rounded-l-[4px] bg-noite px-1 py-3.5 text-nevoa xl:hidden"
+      >
+        <span className="bilhete__vertical text-[11px]! text-nevoa/85!">
           {titulo}
-        </Button>
-      </div>
+        </span>
+      </button>
 
       {/* Gaveta (telas estreitas) */}
       {gavetaAberta ? (

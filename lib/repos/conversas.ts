@@ -83,7 +83,10 @@ export function textoDaMensagem(mensagem?: UIMessage) {
 
 export async function listarConversas(travelerId: string) {
   return db.conversation.findMany({
-    where: { travelerId },
+    // Conversas sem mensagem ficam para trás quando um stream é abortado (o
+    // usuário fecha a aba antes da resposta terminar). Não são conversas de
+    // verdade e não devem sujar a lista.
+    where: { travelerId, mensagens: { some: {} } },
     orderBy: { atualizadaEm: "desc" },
     take: 40,
     select: { id: true, titulo: true, status: true, atualizadaEm: true },

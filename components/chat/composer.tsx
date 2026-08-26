@@ -63,7 +63,9 @@ export function Composer({
             }
           }}
           placeholder="Para onde você quer ir?"
-          className="max-h-[180px] min-h-[36px] flex-1 resize-none bg-transparent px-1.5 py-1.5 text-[15px] leading-relaxed outline-none placeholder:text-tinta-3"
+          // Sem `outline-none`: ele apagava o anel de foco. A regra :focus-visible
+          // de globals.css cuida do anel aqui, como em todo o resto da interface.
+          className="max-h-[180px] min-h-[36px] flex-1 resize-none bg-transparent px-1.5 py-1.5 text-[15px] leading-relaxed placeholder:text-tinta-3"
         />
 
         {ocupado ? (

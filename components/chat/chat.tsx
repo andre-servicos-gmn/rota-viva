@@ -8,6 +8,7 @@ import { Compass } from "lucide-react";
 import { Mensagem } from "./mensagem";
 import { Composer } from "./composer";
 import { EstadoErro } from "@/components/ui/feedback";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const SUGESTOES = [
@@ -49,6 +50,9 @@ export function Chat({
   const fim = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
+    // Sem mensagens não há o que acompanhar — e rolar aqui moveria o ponto de
+    // partida da tabulação, fazendo o primeiro Tab pular o "Ir para o conteúdo".
+    if (messages.length === 0) return;
     fim.current?.scrollIntoView({ block: "end" });
   }, [messages, status]);
 
@@ -56,8 +60,15 @@ export function Chat({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="rolagem flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+      <div className="rolagem flex flex-1 flex-col overflow-y-auto">
+        <div
+          className={cn(
+            "mx-auto w-full max-w-3xl px-4 py-6 sm:px-6",
+            // Conversa vazia: o convite fica no meio da tela, não encostado no
+            // topo com um vão embaixo.
+            vazio && "flex flex-1 flex-col justify-center",
+          )}
+        >
           {vazio ? (
             <Abertura aoEscolher={(texto) => sendMessage({ text: texto })} />
           ) : (
